@@ -61,9 +61,5 @@ jobs:
           name: ${{ matrix.servicename }}-${{ env.VERSION }}
           path: ./nupkg
 
-      - name: Publish NuGet packages
-        uses: dansiegel/publish-nuget@v1.2
-        with:
-          filename: './nupkg/*.nupkg'
-          apiKey: ${{ secrets.PREVIEW_NUGET_API_KEY }}
-          feedUrl: ${{ secrets.PREVIEW_NUGET_FEED_URL }}
+      - name: Publish to NuGet Feed
+        run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.PREVIEW_NUGET_API_KEY }} --source ${{ secrets.PREVIEW_NUGET_FEED_URL }} --skip-duplicate
