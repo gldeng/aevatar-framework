@@ -49,12 +49,14 @@ public abstract partial class
     private readonly List<EventWrapperBaseAsyncObserver> _observers = [];
 
     private IStateDispatcher? StateDispatcher { get; set; }
+    private IGAgentConsumerFactory GAgentConsumerFactory { get; set; }
     protected readonly AevatarOptions AevatarOptions;
 
     protected GAgentBase()
     {
         StateDispatcher = ServiceProvider.GetService<IStateDispatcher>();
         AevatarOptions = ServiceProvider.GetRequiredService<IOptions<AevatarOptions>>().Value;
+        GAgentConsumerFactory =ServiceProvider.GetRequiredService<IGAgentConsumerFactory>();
     }
 
     public async Task ActivateAsync()
@@ -226,7 +228,7 @@ public abstract partial class
     {
         var streamOfThisGAgent = GetEventBaseStream(this.GetGrainId().ToString());
         var handles = await streamOfThisGAgent.GetAllSubscriptionHandles();
-        var asyncObserver = new GAgentAsyncObserver(_observers);
+        var asyncObserver = GAgentConsumerFactory.CreateConsumer(_observers);
         if (handles.Count > 0)
         {
             foreach (var handle in handles)
