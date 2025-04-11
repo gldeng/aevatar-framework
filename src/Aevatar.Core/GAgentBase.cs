@@ -228,7 +228,7 @@ public abstract partial class
     {
         var streamOfThisGAgent = GetEventBaseStream(this.GetGrainId().ToString());
         var handles = await streamOfThisGAgent.GetAllSubscriptionHandles();
-        var asyncObserver = GAgentConsumerFactory.CreateConsumer(_observers);
+        var asyncObserver = GAgentConsumerFactory.CreateConsumer(_observers, this.GetGrainId().ToString());
         if (handles.Count > 0)
         {
             foreach (var handle in handles)
