@@ -12,6 +12,6 @@ public class GAgentConsumerFactory : IGAgentConsumerFactory
 {
     public IAsyncObserver<EventWrapperBase> CreateConsumer(IReadOnlyList<EventWrapperBaseAsyncObserver> observers, string consumerId)
     {
-        return new GAgentAsyncObserver(observers.ToList());
+        return new GAgentAsyncObserver(observers.ToList(), consumerId);
     }
 }
