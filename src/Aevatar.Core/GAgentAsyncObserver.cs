@@ -50,6 +50,29 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
                         ActivityKind.Internal,
                         parentContext);
                     
+                    // Add standard OpenTelemetry semantic conventions for tags
+                    activity?.SetTag("messaging.system", "aevatar");
+                    activity?.SetTag("messaging.aevatar.operation", "process");
+                    activity?.SetTag("messaging.aevatar.destination_kind", "grain");
+                    
+                    // Add OpenTelemetry source/scope metadata
+                    activity?.SetTag("otel.scope.name", "Aevatar.Messaging");
+                    activity?.SetTag("span.kind", "internal");
+                    
+                    // Add event-specific metadata with standard prefixes
+                    activity?.SetTag("messaging.correlation_id", eventType.CorrelationId);
+                    activity?.SetTag("messaging.event_type", eventType.GetType().FullName);
+                    activity?.SetTag("messaging.aevatar.publisher_grain_id", eventType.PublisherGrainId);
+                    activity?.SetTag("messaging.aevatar.consumer_grain_id", _grainId);
+                    
+                    if (token != null)
+                    {
+                        activity?.SetTag("messaging.aevatar.sequence_number", token.SequenceNumber.ToString());
+                    }
+                    
+                    // Add timestamp in proper format
+                    activity?.SetTag("messaging.timestamp", DateTimeOffset.UtcNow.ToString("o"));
+                    
                     // Apply baggage items if any
                     foreach (var entry in item.ContextMetadata.Where(x => x.Key.StartsWith(EventWrapperBase.BaggagePrefixKey)))
                     {
@@ -89,7 +112,13 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
             if (scope != null)
                 scope.RecordException(ex);
             else if (activity != null)
+            {
                 activity.SetStatus(ActivityStatusCode.Error, ex.Message);
+                activity.SetTag("error", true);
+                activity.SetTag("error.type", ex.GetType().FullName);
+                activity.SetTag("error.message", ex.Message);
+                activity.SetTag("error.stack_trace", ex.StackTrace);
+            }
                 
             throw;
         }

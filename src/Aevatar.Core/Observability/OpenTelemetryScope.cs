@@ -37,15 +37,28 @@ internal class OpenTelemetryScope : IDisposable
         var eventTypeName = @event?.GetType().FullName ?? "UnknownEvent";
         _activity = ActivitySource.StartActivity($"ProcessNextGrainEvent/{eventTypeName}", ActivityKind.Internal);
 
-        // Add event details to the activity
-        _activity?.SetTag("event.type", eventTypeName);
-        _activity?.SetTag("event.correlation_id", @event?.CorrelationId);
-        _activity?.SetTag("event.publisher_grain_id", @event?.PublisherGrainId);
-        _activity?.SetTag("event.consumer_grain_id", _grainId);
-        _activity?.SetTag("stream.sequence_number", token?.SequenceNumber.ToString());
-
-        // Add more descriptive tags
-        _activity?.SetTag("event.timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        // Add standard OpenTelemetry semantic conventions for tags
+        _activity?.SetTag("messaging.system", "aevatar");
+        _activity?.SetTag("messaging.aevatar.operation", "process");
+        _activity?.SetTag("messaging.aevatar.destination_kind", "grain");
+        
+        // Add OpenTelemetry source/scope metadata
+        _activity?.SetTag("otel.scope.name", "Aevatar.Messaging");
+        _activity?.SetTag("span.kind", "internal");
+        
+        // Add event-specific metadata with standard prefixes
+        _activity?.SetTag("messaging.correlation_id", @event?.CorrelationId);
+        _activity?.SetTag("messaging.event_type", eventTypeName);
+        _activity?.SetTag("messaging.aevatar.publisher_grain_id", @event?.PublisherGrainId);
+        _activity?.SetTag("messaging.aevatar.consumer_grain_id", _grainId);
+        
+        if (token != null)
+        {
+            _activity?.SetTag("messaging.aevatar.sequence_number", token.SequenceNumber.ToString());
+        }
+        
+        // Add timestamp in proper format
+        _activity?.SetTag("messaging.timestamp", DateTimeOffset.UtcNow.ToString("o"));
     }
 
     public void RecordException(Exception ex)
@@ -53,6 +66,7 @@ internal class OpenTelemetryScope : IDisposable
         var errorType = ex.GetType().FullName;
 
         _activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+        _activity?.SetTag("error", true);
         _activity?.SetTag("error.type", errorType);
         _activity?.SetTag("error.message", ex.Message);
         _activity?.SetTag("error.stack_trace", ex.StackTrace);
