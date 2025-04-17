@@ -55,7 +55,7 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
     /// <summary>
     /// Broadcasts a message to all observers
     /// </summary>
-    private async Task BroadcastToObservers<T>(Func<EventWrapperBaseAsyncObserver, Task> action)
+    private async Task BroadcastToObservers(Func<EventWrapperBaseAsyncObserver, Task> action)
     {
         foreach (var observer in _observers)
         {
