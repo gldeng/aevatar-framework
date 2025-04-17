@@ -17,10 +17,20 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
         _grainId = grainId;
     }
     
+    /// <summary>
+    /// Helper method to extract a property from an EventWrapper using reflection
+    /// </summary>
+    private static T? GetEventWrapperProperty<T>(EventWrapperBase wrapper, string propertyName) where T : class
+    {
+        return wrapper.GetType().GetProperty(propertyName)?.GetValue(wrapper) as T;
+    }
+    
     public async Task OnNextAsync(EventWrapperBase item, StreamSequenceToken? token = null)
     {
-        var eventType = (EventBase)item.GetType().GetProperty(nameof(EventWrapper<EventBase>.Event))?.GetValue(item)!;
-        var eventId = item.GetType().GetProperty("EventId")?.GetValue(item)?.ToString();
+        var eventType = GetEventWrapperProperty<EventBase>(item, nameof(EventWrapper<EventBase>.Event))!;
+        
+        // Extract EventId from the wrapper using reflection
+        var eventId = GetEventWrapperProperty<object>(item, "EventId")?.ToString();
         
         // Extract context from the event wrapper
         Activity? activity = null;
@@ -93,7 +103,7 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
         // If no context was extracted, fall back to the existing scope
         using var scope = activity != null ? 
             null : // We already have an activity from the extracted context
-            OpenTelemetryScope.Start(_grainId, eventType, token);
+            OpenTelemetryScope.Start(_grainId, eventId, eventType, token);
 
         try
         {
