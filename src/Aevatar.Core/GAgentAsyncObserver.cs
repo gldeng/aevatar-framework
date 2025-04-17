@@ -17,87 +17,6 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
     }
     
     /// <summary>
-    /// Helper method to extract a property from an EventWrapper using reflection
-    /// </summary>
-    private static T? GetEventWrapperProperty<T>(EventWrapperBase wrapper, string propertyName) where T : class
-    {
-        return wrapper.GetType().GetProperty(propertyName)?.GetValue(wrapper) as T;
-    }
-    
-    /// <summary>
-    /// Attempts to extract parent context from event metadata
-    /// </summary>
-    private static ActivityContext? ExtractParentContext(EventWrapperBase item)
-    {
-        if (item.ContextMetadata == null || item.ContextMetadata.Count == 0)
-            return null;
-            
-        // Try to extract parent context from metadata
-        if (!item.ContextMetadata.TryGetValue(EventWrapperBase.TraceIdKey, out var traceIdStr) ||
-            !item.ContextMetadata.TryGetValue(EventWrapperBase.SpanIdKey, out var spanIdStr))
-            return null;
-            
-        try
-        {
-            // Parse trace ID and span ID
-            var traceId = ActivityTraceId.CreateFromString(traceIdStr);
-            var spanId = ActivitySpanId.CreateFromString(spanIdStr);
-            
-            // Parse trace flags if available
-            ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
-            if (item.ContextMetadata.TryGetValue(EventWrapperBase.TraceFlagsKey, out var traceFlagsStr))
-            {
-                Enum.TryParse(traceFlagsStr, out traceFlags);
-            }
-
-            return new ActivityContext(traceId, spanId, traceFlags, isRemote: true);
-        }
-        catch (Exception)
-        {
-            // Failed to parse trace ID or span ID
-            return null;
-        }
-    }
-    
-    /// <summary>
-    /// Applies baggage items from event metadata to activity
-    /// </summary>
-    private static void ApplyBaggageItems(Activity? activity, EventWrapperBase item)
-    {
-        if (activity == null || item.ContextMetadata == null)
-            return;
-            
-        foreach (var entry in item.ContextMetadata.Where(x => x.Key.StartsWith(EventWrapperBase.BaggagePrefixKey)))
-        {
-            var baggageKey = entry.Key.Substring(EventWrapperBase.BaggagePrefixKey.Length);
-            activity.AddBaggage(baggageKey, entry.Value);
-        }
-    }
-    
-    /// <summary>
-    /// Creates a tracing activity from the event wrapper if context can be extracted
-    /// </summary>
-    private Activity? CreateTracingActivity(EventWrapperBase item, EventBase eventType, string? eventId, StreamSequenceToken? token)
-    {
-        var parentContext = ExtractParentContext(item);
-        if (!parentContext.HasValue)
-            return null;
-            
-        // Start activity with extracted parent context and set all standard tags
-        var activity = ActivityHelper.StartMessageProcessingActivity(
-            eventType.GetType().FullName ?? "UnknownEvent", 
-            ActivityKind.Internal, 
-            parentContext);
-            
-        ActivityHelper.SetStandardMessageTags(activity, _grainId, eventType, eventId, token);
-        
-        // Apply baggage items if any
-        ApplyBaggageItems(activity, item);
-        
-        return activity;
-    }
-    
-    /// <summary>
     /// Finds observers that match the given event type
     /// </summary>
     private List<EventWrapperBaseAsyncObserver> FindMatchingObservers(EventBase eventType)
@@ -147,11 +66,10 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
     public async Task OnNextAsync(EventWrapperBase item, StreamSequenceToken? token = null)
     {
         // Extract event and ID from wrapper
-        var eventType = GetEventWrapperProperty<EventBase>(item, nameof(EventWrapper<EventBase>.Event))!;
-        var eventId = GetEventWrapperProperty<object>(item, "EventId")?.ToString();
+        var (eventType, eventId) = EventWrapperHelper.ExtractProperties(item);
         
         // Try to create an activity with parent context if available
-        var activity = CreateTracingActivity(item, eventType, eventId, token);
+        var activity = ActivityHelper.CreateEventActivity(item, eventType, _grainId, eventId, token);
         
         // If no activity was created, fall back to the existing scope
         using var scope = activity != null ? 

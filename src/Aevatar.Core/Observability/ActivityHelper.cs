@@ -88,4 +88,77 @@ internal static class ActivityHelper
         activity.SetTag(OpenTelemetryConstants.ErrorMessageTag, ex.Message);
         activity.SetTag(OpenTelemetryConstants.ErrorStackTraceTag, ex.StackTrace);
     }
+    
+    /// <summary>
+    /// Attempts to extract parent context from event metadata
+    /// </summary>
+    public static ActivityContext? ExtractParentContext(EventWrapperBase item)
+    {
+        if (item.ContextMetadata == null || item.ContextMetadata.Count == 0)
+            return null;
+            
+        // Try to extract parent context from metadata
+        if (!item.ContextMetadata.TryGetValue(EventWrapperBase.TraceIdKey, out var traceIdStr) ||
+            !item.ContextMetadata.TryGetValue(EventWrapperBase.SpanIdKey, out var spanIdStr))
+            return null;
+            
+        try
+        {
+            // Parse trace ID and span ID
+            var traceId = ActivityTraceId.CreateFromString(traceIdStr);
+            var spanId = ActivitySpanId.CreateFromString(spanIdStr);
+            
+            // Parse trace flags if available
+            ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
+            if (item.ContextMetadata.TryGetValue(EventWrapperBase.TraceFlagsKey, out var traceFlagsStr))
+            {
+                Enum.TryParse(traceFlagsStr, out traceFlags);
+            }
+
+            return new ActivityContext(traceId, spanId, traceFlags, isRemote: true);
+        }
+        catch (Exception)
+        {
+            // Failed to parse trace ID or span ID
+            return null;
+        }
+    }
+    
+    /// <summary>
+    /// Applies baggage items from event metadata to activity
+    /// </summary>
+    public static void ApplyBaggageItems(Activity? activity, EventWrapperBase item)
+    {
+        if (activity == null || item.ContextMetadata == null)
+            return;
+            
+        foreach (var entry in item.ContextMetadata.Where(x => x.Key.StartsWith(EventWrapperBase.BaggagePrefixKey)))
+        {
+            var baggageKey = entry.Key.Substring(EventWrapperBase.BaggagePrefixKey.Length);
+            activity.AddBaggage(baggageKey, entry.Value);
+        }
+    }
+    
+    /// <summary>
+    /// Creates a complete tracing activity from an event wrapper with all context and tags
+    /// </summary>
+    public static Activity? CreateEventActivity(EventWrapperBase item, EventBase eventType, string grainId, string? eventId, StreamSequenceToken? token)
+    {
+        var parentContext = ExtractParentContext(item);
+        if (!parentContext.HasValue)
+            return null;
+        
+        // Start activity with extracted parent context and set all standard tags
+        var activity = StartMessageProcessingActivity(
+            eventType.GetType().FullName ?? "UnknownEvent", 
+            ActivityKind.Internal, 
+            parentContext);
+            
+        SetStandardMessageTags(activity, grainId, eventType, eventId, token);
+        
+        // Apply baggage items if any
+        ApplyBaggageItems(activity, item);
+        
+        return activity;
+    }
 } 
