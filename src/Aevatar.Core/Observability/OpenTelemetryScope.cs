@@ -47,8 +47,8 @@ internal class OpenTelemetryScope : IDisposable
         _activity?.SetTag("span.kind", "internal");
         
         // Add event-specific metadata with standard prefixes
-        _activity?.SetTag("messaging.correlation_id", @event?.CorrelationId);
-        _activity?.SetTag("messaging.event_type", eventTypeName);
+        _activity?.SetTag("messaging.aevatar.correlation_id", @event?.CorrelationId);
+        _activity?.SetTag("messaging.aevatar.event_type", eventTypeName);
         _activity?.SetTag("messaging.aevatar.publisher_grain_id", @event?.PublisherGrainId);
         _activity?.SetTag("messaging.aevatar.consumer_grain_id", _grainId);
         

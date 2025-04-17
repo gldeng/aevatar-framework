@@ -60,8 +60,9 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
                     activity?.SetTag("span.kind", "internal");
                     
                     // Add event-specific metadata with standard prefixes
-                    activity?.SetTag("messaging.correlation_id", eventType.CorrelationId);
-                    activity?.SetTag("messaging.event_type", eventType.GetType().FullName);
+                    activity?.SetTag("messaging.aevatar.correlation_id", eventType.CorrelationId);
+                    activity?.SetTag("messaging.aevatar.event_id", item.GetType().GetProperty("EventId")?.GetValue(item));
+                    activity?.SetTag("messaging.aevatar.event_type", eventType.GetType().FullName);
                     activity?.SetTag("messaging.aevatar.publisher_grain_id", eventType.PublisherGrainId);
                     activity?.SetTag("messaging.aevatar.consumer_grain_id", _grainId);
                     
