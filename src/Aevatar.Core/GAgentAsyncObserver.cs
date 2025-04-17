@@ -9,7 +9,6 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
 {
     private readonly List<EventWrapperBaseAsyncObserver> _observers;
     private readonly string _grainId;
-    private static readonly ActivitySource ActivitySource = new ActivitySource(OpenTelemetryConstants.ActivitySourceName);
 
     public GAgentAsyncObserver(List<EventWrapperBaseAsyncObserver> observers, string grainId)
     {
@@ -55,35 +54,13 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
 
                     var parentContext = new ActivityContext(traceId, spanId, traceFlags, isRemote: true);
                     
-                    // Start activity with extracted parent context
-                    activity = ActivitySource.StartActivity(
-                        $"{OpenTelemetryConstants.MessageProcessSpanNamePrefix}/{eventType.GetType().FullName}",
-                        ActivityKind.Internal,
+                    // Start activity with extracted parent context and set all standard tags
+                    activity = ActivityHelper.StartMessageProcessingActivity(
+                        eventType.GetType().FullName ?? "UnknownEvent", 
+                        ActivityKind.Internal, 
                         parentContext);
-                    
-                    // Add standard OpenTelemetry semantic conventions for tags
-                    activity?.SetTag(OpenTelemetryConstants.MessagingSystemTag, OpenTelemetryConstants.AevatarSystem);
-                    activity?.SetTag(OpenTelemetryConstants.OperationTag, OpenTelemetryConstants.ProcessOperation);
-                    activity?.SetTag(OpenTelemetryConstants.DestinationKindTag, OpenTelemetryConstants.GrainDestination);
-                    
-                    // Add OpenTelemetry source/scope metadata
-                    activity?.SetTag(OpenTelemetryConstants.ScopeNameTag, OpenTelemetryConstants.ActivitySourceName);
-                    activity?.SetTag(OpenTelemetryConstants.SpanKindTag, OpenTelemetryConstants.InternalSpanKind);
-                    
-                    // Add event-specific metadata with standard prefixes
-                    activity?.SetTag(OpenTelemetryConstants.CorrelationIdTag, eventType.CorrelationId);
-                    activity?.SetTag(OpenTelemetryConstants.EventIdTag, eventId);
-                    activity?.SetTag(OpenTelemetryConstants.EventTypeTag, eventType.GetType().FullName);
-                    activity?.SetTag(OpenTelemetryConstants.PublisherGrainIdTag, eventType.PublisherGrainId);
-                    activity?.SetTag(OpenTelemetryConstants.ConsumerGrainIdTag, _grainId);
-                    
-                    if (token != null)
-                    {
-                        activity?.SetTag(OpenTelemetryConstants.SequenceNumberTag, token.SequenceNumber.ToString());
-                    }
-                    
-                    // Add timestamp in proper format
-                    activity?.SetTag(OpenTelemetryConstants.TimestampTag, DateTimeOffset.UtcNow.ToString("o"));
+                        
+                    ActivityHelper.SetStandardMessageTags(activity, _grainId, eventType, eventId, token);
                     
                     // Apply baggage items if any
                     foreach (var entry in item.ContextMetadata.Where(x => x.Key.StartsWith(EventWrapperBase.BaggagePrefixKey)))
@@ -125,11 +102,7 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
                 scope.RecordException(ex);
             else if (activity != null)
             {
-                activity.SetStatus(ActivityStatusCode.Error, ex.Message);
-                activity.SetTag(OpenTelemetryConstants.ErrorTag, true);
-                activity.SetTag(OpenTelemetryConstants.ErrorTypeTag, ex.GetType().FullName);
-                activity.SetTag(OpenTelemetryConstants.ErrorMessageTag, ex.Message);
-                activity.SetTag(OpenTelemetryConstants.ErrorStackTraceTag, ex.StackTrace);
+                ActivityHelper.RecordException(activity, ex);
             }
                 
             throw;
