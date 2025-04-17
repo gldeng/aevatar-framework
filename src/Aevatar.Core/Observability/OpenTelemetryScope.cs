@@ -17,6 +17,13 @@ internal class OpenTelemetryScope : IDisposable
     {
         var obj = new OpenTelemetryScope(grainId);
         obj.StartProcessing(@event, token);
+        
+        // If there's an active Activity, link it
+        if (Activity.Current != null && obj._activity != null)
+        {
+            obj._activity.SetParentId(Activity.Current.TraceId, Activity.Current.SpanId, Activity.Current.ActivityTraceFlags);
+        }
+        
         return obj;
     }
 

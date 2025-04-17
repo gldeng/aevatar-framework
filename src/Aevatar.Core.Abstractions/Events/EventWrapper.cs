@@ -1,6 +1,8 @@
 // ReSharper disable once CheckNamespace
 namespace Aevatar.Core.Abstractions;
 
+using System.Diagnostics;
+
 [GenerateSerializer]
 public class EventWrapper<T> : EventWrapperBase where T : EventBase
 {
@@ -17,5 +19,24 @@ public class EventWrapper<T> : EventWrapperBase where T : EventBase
         GrainId = grainId;
         CorrelationId = @event.CorrelationId;
         PublisherGrainId = @event.PublisherGrainId;
+        
+        // Initialize ContextMetadata
+        ContextMetadata = new Dictionary<string, string>();
+        
+        // Simple context injection - in real implementation, this would be
+        // enhanced with DistributedContextPropagator usage in GAgentAsyncObserver
+        var activity = Activity.Current;
+        if (activity != null)
+        {
+            ContextMetadata["TraceId"] = activity.TraceId.ToString();
+            ContextMetadata["SpanId"] = activity.SpanId.ToString();
+            ContextMetadata["TraceFlags"] = activity.ActivityTraceFlags.ToString();
+            
+            // Add baggage items
+            foreach (var baggage in activity.Baggage)
+            {
+                ContextMetadata[$"Baggage.{baggage.Key}"] = baggage.Value;
+            }
+        }
     }
 }
