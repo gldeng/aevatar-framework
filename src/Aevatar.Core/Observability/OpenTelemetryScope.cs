@@ -35,7 +35,7 @@ internal class OpenTelemetryScope : IDisposable
     private void StartProcessing(EventBase? @event, StreamSequenceToken? token = null)
     {
         var eventTypeName = @event?.GetType().FullName ?? "UnknownEvent";
-        _activity = ActivitySource.StartActivity($"ProcessNextGrainEvent/{eventTypeName}", ActivityKind.Internal);
+        _activity = ActivitySource.StartActivity($"aevatar.grain.process/{eventTypeName}", ActivityKind.Internal);
 
         // Add standard OpenTelemetry semantic conventions for tags
         _activity?.SetTag("messaging.system", "aevatar");
