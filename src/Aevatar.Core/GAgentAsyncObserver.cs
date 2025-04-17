@@ -20,6 +20,7 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
     public async Task OnNextAsync(EventWrapperBase item, StreamSequenceToken? token = null)
     {
         var eventType = (EventBase)item.GetType().GetProperty(nameof(EventWrapper<EventBase>.Event))?.GetValue(item)!;
+        var eventId = item.GetType().GetProperty("EventId")?.GetValue(item)?.ToString();
         
         // Extract context from the event wrapper
         Activity? activity = null;
@@ -61,7 +62,7 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
                     
                     // Add event-specific metadata with standard prefixes
                     activity?.SetTag("messaging.aevatar.correlation_id", eventType.CorrelationId);
-                    activity?.SetTag("messaging.aevatar.event_id", item.GetType().GetProperty("EventId")?.GetValue(item));
+                    activity?.SetTag("messaging.aevatar.event_id", eventId);
                     activity?.SetTag("messaging.aevatar.event_type", eventType.GetType().FullName);
                     activity?.SetTag("messaging.aevatar.publisher_grain_id", eventType.PublisherGrainId);
                     activity?.SetTag("messaging.aevatar.consumer_grain_id", _grainId);
@@ -92,7 +93,7 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
         // If no context was extracted, fall back to the existing scope
         using var scope = activity != null ? 
             null : // We already have an activity from the extracted context
-            OpenTelemetryScope.Start(_grainId, eventType, token);
+            OpenTelemetryScope.Start(_grainId, eventId, eventType, token);
 
         try
         {

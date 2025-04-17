@@ -10,12 +10,13 @@ internal class OpenTelemetryScope : IDisposable
     private static readonly ActivitySource ActivitySource = new ActivitySource("Aevatar.Messaging");
 
     private readonly string _grainId;
+    private readonly string? _eventId;
 
     private Activity _activity;
 
-    public static OpenTelemetryScope Start(string grainId, EventBase? @event, StreamSequenceToken? token = null)
+    public static OpenTelemetryScope Start(string grainId, string? eventId, EventBase? @event, StreamSequenceToken? token = null)
     {
-        var obj = new OpenTelemetryScope(grainId);
+        var obj = new OpenTelemetryScope(grainId, eventId);
         obj.StartProcessing(@event, token);
         
         // If there's an active Activity, link it
@@ -27,9 +28,10 @@ internal class OpenTelemetryScope : IDisposable
         return obj;
     }
 
-    private OpenTelemetryScope(string grainId)
+    private OpenTelemetryScope(string grainId, string? eventId)
     {
         _grainId = grainId;
+        _eventId = eventId;
     }
 
     private void StartProcessing(EventBase? @event, StreamSequenceToken? token = null)
@@ -48,6 +50,7 @@ internal class OpenTelemetryScope : IDisposable
         
         // Add event-specific metadata with standard prefixes
         _activity?.SetTag("messaging.aevatar.correlation_id", @event?.CorrelationId);
+        _activity?.SetTag("messaging.aevatar.event_id", _eventId);
         _activity?.SetTag("messaging.aevatar.event_type", eventTypeName);
         _activity?.SetTag("messaging.aevatar.publisher_grain_id", @event?.PublisherGrainId);
         _activity?.SetTag("messaging.aevatar.consumer_grain_id", _grainId);
