@@ -46,7 +46,7 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
                     
                     // Start activity with extracted parent context
                     activity = ActivitySource.StartActivity(
-                        $"aevatar.grain.process/{eventType.GetType().FullName}",
+                        $"ProcessNextGrainEvent/{eventType.GetType().FullName}",
                         ActivityKind.Internal,
                         parentContext);
                     
