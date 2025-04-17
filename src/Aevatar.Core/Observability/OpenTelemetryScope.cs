@@ -1,3 +1,5 @@
+using Aevatar.Core.Abstractions;
+
 namespace Aevatar.Core;
 
 using System.Diagnostics;
@@ -8,12 +10,13 @@ internal class OpenTelemetryScope : IDisposable
     private static readonly ActivitySource ActivitySource = new ActivitySource(OpenTelemetryConstants.ActivitySourceName);
 
     private readonly string _grainId;
+    private readonly string? _eventId;
 
     private Activity _activity;
 
-    public static OpenTelemetryScope Start(string grainId, EventBase? @event, StreamSequenceToken? token = null)
+    public static OpenTelemetryScope Start(string grainId, string? eventId, EventBase? @event, StreamSequenceToken? token = null)
     {
-        var obj = new OpenTelemetryScope(grainId);
+        var obj = new OpenTelemetryScope(grainId, eventId);
         obj.StartProcessing(@event, token);
         
         // If there's an active Activity, link it
@@ -25,9 +28,10 @@ internal class OpenTelemetryScope : IDisposable
         return obj;
     }
 
-    private OpenTelemetryScope(string grainId)
+    private OpenTelemetryScope(string grainId, string? eventId)
     {
         _grainId = grainId;
+        _eventId = eventId;
     }
 
     private void StartProcessing(EventBase? @event, StreamSequenceToken? token = null)
@@ -48,6 +52,7 @@ internal class OpenTelemetryScope : IDisposable
         
         // Add event-specific metadata with standard prefixes
         _activity?.SetTag(OpenTelemetryConstants.CorrelationIdTag, @event?.CorrelationId);
+        _activity?.SetTag(OpenTelemetryConstants.EventIdTag, _eventId);
         _activity?.SetTag(OpenTelemetryConstants.EventTypeTag, eventTypeName);
         _activity?.SetTag(OpenTelemetryConstants.PublisherGrainIdTag, @event?.PublisherGrainId);
         _activity?.SetTag(OpenTelemetryConstants.ConsumerGrainIdTag, _grainId);
