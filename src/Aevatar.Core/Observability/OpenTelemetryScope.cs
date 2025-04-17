@@ -1,5 +1,3 @@
-using Aevatar.Core.Abstractions;
-
 namespace Aevatar.Core;
 
 using System.Diagnostics;
@@ -7,16 +5,15 @@ using Orleans.Streams;
 
 internal class OpenTelemetryScope : IDisposable
 {
-    private static readonly ActivitySource ActivitySource = new ActivitySource("Aevatar.Messaging");
+    private static readonly ActivitySource ActivitySource = new ActivitySource(OpenTelemetryConstants.ActivitySourceName);
 
     private readonly string _grainId;
-    private readonly string? _eventId;
 
     private Activity _activity;
 
-    public static OpenTelemetryScope Start(string grainId, string? eventId, EventBase? @event, StreamSequenceToken? token = null)
+    public static OpenTelemetryScope Start(string grainId, EventBase? @event, StreamSequenceToken? token = null)
     {
-        var obj = new OpenTelemetryScope(grainId, eventId);
+        var obj = new OpenTelemetryScope(grainId);
         obj.StartProcessing(@event, token);
         
         // If there's an active Activity, link it
@@ -28,40 +25,40 @@ internal class OpenTelemetryScope : IDisposable
         return obj;
     }
 
-    private OpenTelemetryScope(string grainId, string? eventId)
+    private OpenTelemetryScope(string grainId)
     {
         _grainId = grainId;
-        _eventId = eventId;
     }
 
     private void StartProcessing(EventBase? @event, StreamSequenceToken? token = null)
     {
         var eventTypeName = @event?.GetType().FullName ?? "UnknownEvent";
-        _activity = ActivitySource.StartActivity($"aevatar.message.process/{eventTypeName}", ActivityKind.Internal);
+        _activity = ActivitySource.StartActivity(
+            $"{OpenTelemetryConstants.MessageProcessSpanNamePrefix}/{eventTypeName}", 
+            ActivityKind.Internal);
 
         // Add standard OpenTelemetry semantic conventions for tags
-        _activity?.SetTag("messaging.system", "aevatar");
-        _activity?.SetTag("messaging.aevatar.operation", "process");
-        _activity?.SetTag("messaging.aevatar.destination_kind", "grain");
+        _activity?.SetTag(OpenTelemetryConstants.MessagingSystemTag, OpenTelemetryConstants.AevatarSystem);
+        _activity?.SetTag(OpenTelemetryConstants.OperationTag, OpenTelemetryConstants.ProcessOperation);
+        _activity?.SetTag(OpenTelemetryConstants.DestinationKindTag, OpenTelemetryConstants.GrainDestination);
         
         // Add OpenTelemetry source/scope metadata
-        _activity?.SetTag("otel.scope.name", "Aevatar.Messaging");
-        _activity?.SetTag("span.kind", "internal");
+        _activity?.SetTag(OpenTelemetryConstants.ScopeNameTag, OpenTelemetryConstants.ActivitySourceName);
+        _activity?.SetTag(OpenTelemetryConstants.SpanKindTag, OpenTelemetryConstants.InternalSpanKind);
         
         // Add event-specific metadata with standard prefixes
-        _activity?.SetTag("messaging.aevatar.correlation_id", @event?.CorrelationId);
-        _activity?.SetTag("messaging.aevatar.event_id", _eventId);
-        _activity?.SetTag("messaging.aevatar.event_type", eventTypeName);
-        _activity?.SetTag("messaging.aevatar.publisher_grain_id", @event?.PublisherGrainId);
-        _activity?.SetTag("messaging.aevatar.consumer_grain_id", _grainId);
+        _activity?.SetTag(OpenTelemetryConstants.CorrelationIdTag, @event?.CorrelationId);
+        _activity?.SetTag(OpenTelemetryConstants.EventTypeTag, eventTypeName);
+        _activity?.SetTag(OpenTelemetryConstants.PublisherGrainIdTag, @event?.PublisherGrainId);
+        _activity?.SetTag(OpenTelemetryConstants.ConsumerGrainIdTag, _grainId);
         
         if (token != null)
         {
-            _activity?.SetTag("messaging.aevatar.sequence_number", token.SequenceNumber.ToString());
+            _activity?.SetTag(OpenTelemetryConstants.SequenceNumberTag, token.SequenceNumber.ToString());
         }
         
         // Add timestamp in proper format
-        _activity?.SetTag("messaging.timestamp", DateTimeOffset.UtcNow.ToString("o"));
+        _activity?.SetTag(OpenTelemetryConstants.TimestampTag, DateTimeOffset.UtcNow.ToString("o"));
     }
 
     public void RecordException(Exception ex)
@@ -69,10 +66,10 @@ internal class OpenTelemetryScope : IDisposable
         var errorType = ex.GetType().FullName;
 
         _activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-        _activity?.SetTag("error", true);
-        _activity?.SetTag("error.type", errorType);
-        _activity?.SetTag("error.message", ex.Message);
-        _activity?.SetTag("error.stack_trace", ex.StackTrace);
+        _activity?.SetTag(OpenTelemetryConstants.ErrorTag, true);
+        _activity?.SetTag(OpenTelemetryConstants.ErrorTypeTag, errorType);
+        _activity?.SetTag(OpenTelemetryConstants.ErrorMessageTag, ex.Message);
+        _activity?.SetTag(OpenTelemetryConstants.ErrorStackTraceTag, ex.StackTrace);
     }
 
     public void Dispose()

@@ -9,7 +9,7 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
 {
     private readonly List<EventWrapperBaseAsyncObserver> _observers;
     private readonly string _grainId;
-    private static readonly ActivitySource ActivitySource = new ActivitySource("Aevatar.Messaging");
+    private static readonly ActivitySource ActivitySource = new ActivitySource(OpenTelemetryConstants.ActivitySourceName);
 
     public GAgentAsyncObserver(List<EventWrapperBaseAsyncObserver> observers, string grainId)
     {
@@ -47,33 +47,33 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
                     
                     // Start activity with extracted parent context
                     activity = ActivitySource.StartActivity(
-                        $"aevatar.message.process/{eventType.GetType().FullName}",
+                        $"{OpenTelemetryConstants.MessageProcessSpanNamePrefix}/{eventType.GetType().FullName}",
                         ActivityKind.Internal,
                         parentContext);
                     
                     // Add standard OpenTelemetry semantic conventions for tags
-                    activity?.SetTag("messaging.system", "aevatar");
-                    activity?.SetTag("messaging.aevatar.operation", "process");
-                    activity?.SetTag("messaging.aevatar.destination_kind", "grain");
+                    activity?.SetTag(OpenTelemetryConstants.MessagingSystemTag, OpenTelemetryConstants.AevatarSystem);
+                    activity?.SetTag(OpenTelemetryConstants.OperationTag, OpenTelemetryConstants.ProcessOperation);
+                    activity?.SetTag(OpenTelemetryConstants.DestinationKindTag, OpenTelemetryConstants.GrainDestination);
                     
                     // Add OpenTelemetry source/scope metadata
-                    activity?.SetTag("otel.scope.name", "Aevatar.Messaging");
-                    activity?.SetTag("span.kind", "internal");
+                    activity?.SetTag(OpenTelemetryConstants.ScopeNameTag, OpenTelemetryConstants.ActivitySourceName);
+                    activity?.SetTag(OpenTelemetryConstants.SpanKindTag, OpenTelemetryConstants.InternalSpanKind);
                     
                     // Add event-specific metadata with standard prefixes
-                    activity?.SetTag("messaging.aevatar.correlation_id", eventType.CorrelationId);
-                    activity?.SetTag("messaging.aevatar.event_id", eventId);
-                    activity?.SetTag("messaging.aevatar.event_type", eventType.GetType().FullName);
-                    activity?.SetTag("messaging.aevatar.publisher_grain_id", eventType.PublisherGrainId);
-                    activity?.SetTag("messaging.aevatar.consumer_grain_id", _grainId);
+                    activity?.SetTag(OpenTelemetryConstants.CorrelationIdTag, eventType.CorrelationId);
+                    activity?.SetTag(OpenTelemetryConstants.EventIdTag, eventId);
+                    activity?.SetTag(OpenTelemetryConstants.EventTypeTag, eventType.GetType().FullName);
+                    activity?.SetTag(OpenTelemetryConstants.PublisherGrainIdTag, eventType.PublisherGrainId);
+                    activity?.SetTag(OpenTelemetryConstants.ConsumerGrainIdTag, _grainId);
                     
                     if (token != null)
                     {
-                        activity?.SetTag("messaging.aevatar.sequence_number", token.SequenceNumber.ToString());
+                        activity?.SetTag(OpenTelemetryConstants.SequenceNumberTag, token.SequenceNumber.ToString());
                     }
                     
                     // Add timestamp in proper format
-                    activity?.SetTag("messaging.timestamp", DateTimeOffset.UtcNow.ToString("o"));
+                    activity?.SetTag(OpenTelemetryConstants.TimestampTag, DateTimeOffset.UtcNow.ToString("o"));
                     
                     // Apply baggage items if any
                     foreach (var entry in item.ContextMetadata.Where(x => x.Key.StartsWith(EventWrapperBase.BaggagePrefixKey)))
@@ -93,7 +93,7 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
         // If no context was extracted, fall back to the existing scope
         using var scope = activity != null ? 
             null : // We already have an activity from the extracted context
-            OpenTelemetryScope.Start(_grainId, eventId, eventType, token);
+            OpenTelemetryScope.Start(_grainId, eventType, token);
 
         try
         {
@@ -116,10 +116,10 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
             else if (activity != null)
             {
                 activity.SetStatus(ActivityStatusCode.Error, ex.Message);
-                activity.SetTag("error", true);
-                activity.SetTag("error.type", ex.GetType().FullName);
-                activity.SetTag("error.message", ex.Message);
-                activity.SetTag("error.stack_trace", ex.StackTrace);
+                activity.SetTag(OpenTelemetryConstants.ErrorTag, true);
+                activity.SetTag(OpenTelemetryConstants.ErrorTypeTag, ex.GetType().FullName);
+                activity.SetTag(OpenTelemetryConstants.ErrorMessageTag, ex.Message);
+                activity.SetTag(OpenTelemetryConstants.ErrorStackTraceTag, ex.StackTrace);
             }
                 
             throw;
