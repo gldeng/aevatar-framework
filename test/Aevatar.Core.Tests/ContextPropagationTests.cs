@@ -25,8 +25,8 @@ namespace Aevatar.Core.Tests
                 Assert.NotEmpty(eventWrapper.ContextMetadata);
                 
                 // The TraceId should match the current activity
-                Assert.Equal(rootActivity.TraceId.ToString(), eventWrapper.ContextMetadata["TraceId"]);
-                Assert.Equal(rootActivity.SpanId.ToString(), eventWrapper.ContextMetadata["SpanId"]);
+                Assert.Equal(rootActivity.TraceId.ToString(), eventWrapper.ContextMetadata[EventWrapperBase.TraceIdKey]);
+                Assert.Equal(rootActivity.SpanId.ToString(), eventWrapper.ContextMetadata[EventWrapperBase.SpanIdKey]);
             }
             finally
             {
@@ -49,9 +49,9 @@ namespace Aevatar.Core.Tests
                 
                 // Assert
                 Assert.NotNull(eventWrapper.ContextMetadata);
-                Assert.Equal(originalActivity.TraceId.ToString(), eventWrapper.ContextMetadata["TraceId"]);
-                Assert.Equal(originalActivity.SpanId.ToString(), eventWrapper.ContextMetadata["SpanId"]);
-                Assert.Equal("TestValue", eventWrapper.ContextMetadata["Baggage.TestKey"]);
+                Assert.Equal(originalActivity.TraceId.ToString(), eventWrapper.ContextMetadata[EventWrapperBase.TraceIdKey]);
+                Assert.Equal(originalActivity.SpanId.ToString(), eventWrapper.ContextMetadata[EventWrapperBase.SpanIdKey]);
+                Assert.Equal("TestValue", eventWrapper.ContextMetadata[$"{EventWrapperBase.BaggagePrefixKey}TestKey"]);
             }
             finally
             {

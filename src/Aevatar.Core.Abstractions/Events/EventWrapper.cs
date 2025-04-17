@@ -28,14 +28,14 @@ public class EventWrapper<T> : EventWrapperBase where T : EventBase
         var activity = Activity.Current;
         if (activity != null)
         {
-            ContextMetadata["TraceId"] = activity.TraceId.ToString();
-            ContextMetadata["SpanId"] = activity.SpanId.ToString();
-            ContextMetadata["TraceFlags"] = activity.ActivityTraceFlags.ToString();
+            ContextMetadata[TraceIdKey] = activity.TraceId.ToString();
+            ContextMetadata[SpanIdKey] = activity.SpanId.ToString();
+            ContextMetadata[TraceFlagsKey] = activity.ActivityTraceFlags.ToString();
             
             // Add baggage items
             foreach (var baggage in activity.Baggage)
             {
-                ContextMetadata[$"Baggage.{baggage.Key}"] = baggage.Value;
+                ContextMetadata[$"{BaggagePrefixKey}{baggage.Key}"] = baggage.Value;
             }
         }
     }

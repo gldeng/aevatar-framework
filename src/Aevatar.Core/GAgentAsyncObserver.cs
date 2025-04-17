@@ -26,8 +26,8 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
         if (item.ContextMetadata != null && item.ContextMetadata.Count > 0)
         {
             // Try to extract parent context from metadata
-            if (item.ContextMetadata.TryGetValue("TraceId", out var traceIdStr) &&
-                item.ContextMetadata.TryGetValue("SpanId", out var spanIdStr))
+            if (item.ContextMetadata.TryGetValue(EventWrapperBase.TraceIdKey, out var traceIdStr) &&
+                item.ContextMetadata.TryGetValue(EventWrapperBase.SpanIdKey, out var spanIdStr))
             {
                 try
                 {
@@ -37,7 +37,7 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
                     
                     // Parse trace flags if available
                     ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
-                    if (item.ContextMetadata.TryGetValue("TraceFlags", out var traceFlagsStr))
+                    if (item.ContextMetadata.TryGetValue(EventWrapperBase.TraceFlagsKey, out var traceFlagsStr))
                     {
                         Enum.TryParse(traceFlagsStr, out traceFlags);
                     }
@@ -51,9 +51,9 @@ public class GAgentAsyncObserver : IAsyncObserver<EventWrapperBase>
                         parentContext);
                     
                     // Apply baggage items if any
-                    foreach (var entry in item.ContextMetadata.Where(x => x.Key.StartsWith("Baggage.")))
+                    foreach (var entry in item.ContextMetadata.Where(x => x.Key.StartsWith(EventWrapperBase.BaggagePrefixKey)))
                     {
-                        var baggageKey = entry.Key.Substring("Baggage.".Length);
+                        var baggageKey = entry.Key.Substring(EventWrapperBase.BaggagePrefixKey.Length);
                         activity?.AddBaggage(baggageKey, entry.Value);
                     }
                 }
