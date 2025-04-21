@@ -44,10 +44,6 @@ internal static class ActivityHelper
         activity.SetTag(OpenTelemetryConstants.OperationTag, OpenTelemetryConstants.ProcessOperation);
         activity.SetTag(OpenTelemetryConstants.DestinationKindTag, OpenTelemetryConstants.GrainDestination);
         
-        // Set OpenTelemetry metadata
-        activity.SetTag(OpenTelemetryConstants.ScopeNameTag, OpenTelemetryConstants.ActivitySourceName);
-        activity.SetTag(OpenTelemetryConstants.SpanKindTag, OpenTelemetryConstants.InternalSpanKind);
-        
         // Set event metadata if available
         if (@event != null)
         {
