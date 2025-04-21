@@ -24,11 +24,6 @@ public static class OpenTelemetryConstants
     public const string DestinationKindTag = "messaging.aevatar.destination_kind";
     public const string GrainDestination = "grain";
     
-    // OpenTelemetry metadata
-    public const string ScopeNameTag = "otel.scope.name";
-    public const string SpanKindTag = "span.kind";
-    public const string InternalSpanKind = "internal";
-    
     // Event metadata
     public const string CorrelationIdTag = "messaging.aevatar.correlation_id";
     public const string EventIdTag = "messaging.aevatar.event_id";
