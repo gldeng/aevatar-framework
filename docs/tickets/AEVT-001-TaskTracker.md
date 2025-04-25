@@ -23,10 +23,16 @@ This document tracks the implementation progress of the IGrainStorage metrics de
 | Create Usage Examples | ✅ Completed | Added examples for basic and advanced scenarios | 2023-06-28 |
 | Integration Tests | ✅ Completed | Created and verified integration tests with DI container | 2023-06-28 |
 
+### Phase 3: Refinements
+| Task | Status | Notes | Completed On |
+|------|--------|-------|-------------|
+| Replace Activity Tracing with Pure Metrics | ✅ Completed | Removed ActivitySource and trace code, using System.Diagnostics.Metrics exclusively | Current Date |
+| Update Documentation for Pure Metrics | ⏳ In Progress | Updating design docs and examples to reflect the pure metrics approach | - |
+
 ## Progress Summary
-- Current Phase: Phase 2 Nearly Complete
-- Tasks Completed: 9/10
-- Overall Progress: 90%
+- Current Phase: Phase 3 Refinements
+- Tasks Completed: 10/12
+- Overall Progress: 85%
 
 ## Blockers & Issues
 - Testing with actual MongoDB provider would require MongoDB instance setup
@@ -38,7 +44,9 @@ This document tracks the implementation progress of the IGrainStorage metrics de
 3. ✅ Set up unit test project structure
 4. ✅ Create usage documentation
 5. ✅ Set up basic integration tests
-6. ➡️ Complete MongoDB integration test (requires MongoDB setup)
+6. ✅ Replace Activity tracing with pure metrics implementation
+7. ➡️ Update documentation to reflect pure metrics approach
+8. ➡️ Complete MongoDB integration test (requires MongoDB setup)
 
 ## Notes
 - Status Legend:
@@ -48,3 +56,4 @@ This document tracks the implementation progress of the IGrainStorage metrics de
   - 🚫 Blocked: Unable to proceed due to dependencies or issues
 - All unit tests are now passing (13 tests passing, 1 skipped)
 - Integration test for MongoDB is implemented as a placeholder and skipped 
+- The MetricsGrainStorage implementation has been refactored to use System.Diagnostics.Metrics instead of Activity tracing for better performance and focused metrics collection 

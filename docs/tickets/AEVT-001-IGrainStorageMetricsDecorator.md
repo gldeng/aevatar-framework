@@ -77,85 +77,75 @@ namespace Aevatar.EventSourcing.Core.Storage.Decorators
     public class MetricsGrainStorage : GrainStorageDecoratorBase
     {
         private readonly ILogger<MetricsGrainStorage> _logger;
-        private readonly ITelemetryClient _telemetryClient;
+        private readonly Meter _meter;
+        private readonly Histogram<double> _readDurationHistogram;
+        private readonly Histogram<double> _writeDurationHistogram;
+        private readonly Histogram<double> _clearDurationHistogram;
+        private readonly Counter<long> _readCounter;
+        private readonly Counter<long> _writeCounter;
+        private readonly Counter<long> _clearCounter;
+        private readonly Counter<long> _readErrorCounter;
+        private readonly Counter<long> _writeErrorCounter;
+        private readonly Counter<long> _clearErrorCounter;
+
+        private const string MeterName = "Aevatar.Storage.Metrics";
 
         public MetricsGrainStorage(
             IGrainStorage inner,
-            ILogger<MetricsGrainStorage> logger,
-            ITelemetryClient telemetryClient) : base(inner)
+            ILogger<MetricsGrainStorage> logger) : base(inner)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _telemetryClient = telemetryClient ?? throw new ArgumentNullException(nameof(telemetryClient));
+            
+            // Initialize metrics
+            _meter = new Meter(MeterName, "1.0.0");
+            
+            // Create histograms for operation durations
+            _readDurationHistogram = _meter.CreateHistogram<double>(
+                name: "grain.storage.read.duration",
+                unit: "ms",
+                description: "Duration of grain state read operations");
+                
+            // Additional metrics initialization...
         }
 
         public override async Task ReadStateAsync<T>(string stateName, GrainId grainId, IGrainState<T> grainState)
         {
-            using var activity = _telemetryClient.StartOperation("GrainStorage.ReadState");
-            var stopwatch = Stopwatch.StartNew();
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             try
             {
+                // Increment operation counter
+                _readCounter.Add(1, 
+                    new KeyValuePair<string, object?>("grainType", typeof(T).Name),
+                    new KeyValuePair<string, object?>("stateName", stateName));
+
                 await base.ReadStateAsync(stateName, grainId, grainState);
                 
                 stopwatch.Stop();
-                _telemetryClient.TrackMetric("GrainStorage.ReadState.Duration", stopwatch.ElapsedMilliseconds);
-                activity.SetProperty("GrainId", grainId.ToString());
-                activity.SetProperty("StateName", stateName);
-                activity.SetProperty("GrainType", typeof(T).Name);
-            }
-            catch (Exception ex)
-            {
-                activity.SetProperty("Error", ex.Message);
-                _telemetryClient.TrackMetric("GrainStorage.ReadState.Errors", 1);
-                throw;
-            }
-        }
-
-        public override async Task WriteStateAsync<T>(string stateName, GrainId grainId, IGrainState<T> grainState)
-        {
-            using var activity = _telemetryClient.StartOperation("GrainStorage.WriteState");
-            var stopwatch = Stopwatch.StartNew();
-
-            try
-            {
-                await base.WriteStateAsync(stateName, grainId, grainState);
+                var duration = stopwatch.ElapsedMilliseconds;
                 
-                stopwatch.Stop();
-                _telemetryClient.TrackMetric("GrainStorage.WriteState.Duration", stopwatch.ElapsedMilliseconds);
-                activity.SetProperty("GrainId", grainId.ToString());
-                activity.SetProperty("StateName", stateName);
-                activity.SetProperty("GrainType", typeof(T).Name);
-            }
-            catch (Exception ex)
-            {
-                activity.SetProperty("Error", ex.Message);
-                _telemetryClient.TrackMetric("GrainStorage.WriteState.Errors", 1);
-                throw;
-            }
-        }
-
-        public override async Task ClearStateAsync<T>(string stateName, GrainId grainId, IGrainState<T> grainState)
-        {
-            using var activity = _telemetryClient.StartOperation("GrainStorage.ClearState");
-            var stopwatch = Stopwatch.StartNew();
-
-            try
-            {
-                await base.ClearStateAsync(stateName, grainId, grainState);
+                // Record duration metric
+                _readDurationHistogram.Record(duration, 
+                    new KeyValuePair<string, object?>("grainType", typeof(T).Name),
+                    new KeyValuePair<string, object?>("stateName", stateName));
                 
-                stopwatch.Stop();
-                _telemetryClient.TrackMetric("GrainStorage.ClearState.Duration", stopwatch.ElapsedMilliseconds);
-                activity.SetProperty("GrainId", grainId.ToString());
-                activity.SetProperty("StateName", stateName);
-                activity.SetProperty("GrainType", typeof(T).Name);
+                _logger.LogTrace("Read state for grain {GrainId} completed in {Duration}ms", 
+                    grainId.ToString(), duration);
             }
             catch (Exception ex)
             {
-                activity.SetProperty("Error", ex.Message);
-                _telemetryClient.TrackMetric("GrainStorage.ClearState.Errors", 1);
+                // Increment error counter
+                _readErrorCounter.Add(1,
+                    new KeyValuePair<string, object?>("grainType", typeof(T).Name),
+                    new KeyValuePair<string, object?>("stateName", stateName),
+                    new KeyValuePair<string, object?>("errorType", ex.GetType().Name));
+                
+                _logger.LogError(ex, "Error reading state for grain {GrainId}", grainId);
                 throw;
             }
         }
+
+        // Similar implementations for WriteStateAsync and ClearStateAsync
     }
 }
 ```
@@ -180,8 +170,7 @@ namespace Aevatar.EventSourcing.Core.Extensions
             services.Decorate<IGrainStorage>((inner, provider) => 
                 new MetricsGrainStorage(
                     inner, 
-                    provider.GetRequiredService<ILogger<MetricsGrainStorage>>(),
-                    provider.GetRequiredService<ITelemetryClient>()));
+                    provider.GetRequiredService<ILogger<MetricsGrainStorage>>()));
                 
             return services;
         }
@@ -189,7 +178,53 @@ namespace Aevatar.EventSourcing.Core.Extensions
 }
 ```
 
-### 4. Usage Example
+### 4. Metrics Collection
+
+The MetricsGrainStorage decorator uses the .NET System.Diagnostics.Metrics API for collecting performance metrics. This approach provides several benefits:
+
+1. **Standard Metrics API**: Using the standard .NET metrics API ensures compatibility with various monitoring systems.
+2. **Focused Metrics Collection**: The implementation focuses purely on metrics collection without the overhead of distributed tracing.
+3. **Dimensional Metrics**: Each metric includes dimensions (tags) such as grain type and state name for detailed analysis.
+4. **Performance Optimized**: Minimal overhead for high-throughput grain operations.
+
+The following metrics are collected:
+
+| Metric | Type | Description | Tags |
+|--------|------|-------------|------|
+| grain.storage.read.count | Counter | Number of read operations | grainType, stateName |
+| grain.storage.write.count | Counter | Number of write operations | grainType, stateName |
+| grain.storage.clear.count | Counter | Number of clear operations | grainType, stateName |
+| grain.storage.read.duration | Histogram | Duration of read operations in ms | grainType, stateName |
+| grain.storage.write.duration | Histogram | Duration of write operations in ms | grainType, stateName |
+| grain.storage.clear.duration | Histogram | Duration of clear operations in ms | grainType, stateName |
+| grain.storage.read.errors | Counter | Number of read errors | grainType, stateName, errorType |
+| grain.storage.write.errors | Counter | Number of write errors | grainType, stateName, errorType |
+| grain.storage.clear.errors | Counter | Number of clear errors | grainType, stateName, errorType |
+
+### 5. Integration with Monitoring Systems
+
+The metrics collected can be consumed by various monitoring systems:
+
+1. **Prometheus**: Using the prometheus-net.DotNetRuntime package
+2. **Application Insights**: Using the Microsoft.ApplicationInsights.AspNetCore package
+3. **OpenTelemetry**: Using the OpenTelemetry.Exporter packages
+
+Example configuration for Prometheus:
+
+```csharp
+services.AddSingleton<IHostedService, PrometheusMetricsService>();
+```
+
+Example configuration for OpenTelemetry:
+
+```csharp
+services.AddOpenTelemetry()
+    .WithMetrics(metrics => metrics
+        .AddMeter("Aevatar.Storage.Metrics")
+        .AddPrometheusExporter());
+```
+
+### 6. Usage Example
 
 ```csharp
 // In Startup.cs or Program.cs
@@ -204,6 +239,12 @@ public void ConfigureServices(IServiceCollection services)
     
     // This results in: 
     // MetricsGrainStorage -> MongoDBGrainStorage
+    
+    // Add metrics collection
+    services.AddOpenTelemetry()
+        .WithMetrics(metrics => metrics
+            .AddMeter("Aevatar.Storage.Metrics")
+            .AddConsoleExporter());
 }
 ```
 
