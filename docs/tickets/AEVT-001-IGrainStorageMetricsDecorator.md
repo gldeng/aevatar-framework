@@ -220,7 +220,7 @@ Example configuration for OpenTelemetry:
 ```csharp
 services.AddOpenTelemetry()
     .WithMetrics(metrics => metrics
-        .AddMeter("Aevatar_Storage_Metrics")
+        .AddMeter("Aevatar_Storage")
         .AddPrometheusExporter());
 ```
 
@@ -243,7 +243,7 @@ public void ConfigureServices(IServiceCollection services)
     // Add metrics collection
     services.AddOpenTelemetry()
         .WithMetrics(metrics => metrics
-            .AddMeter("Aevatar_Storage_Metrics")
+            .AddMeter("Aevatar_Storage")
             .AddConsoleExporter());
 }
 ```
