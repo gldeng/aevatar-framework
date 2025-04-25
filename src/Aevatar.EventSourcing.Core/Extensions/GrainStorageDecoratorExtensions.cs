@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Aevatar.EventSourcing.Core.Storage.Decorators;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Orleans.Storage;
 using Scrutor;
@@ -13,30 +16,107 @@ namespace Aevatar.EventSourcing.Core.Extensions
     public static class GrainStorageDecoratorExtensions
     {
         /// <summary>
-        /// Adds decorator registration support to the service collection
+        /// Replaces the default IGrainStorage implementation with a MetricsGrainStorage decorator
         /// </summary>
         /// <param name="services">The service collection</param>
         /// <returns>The service collection for chaining</returns>
-        public static IServiceCollection AddGrainStorageDecorators(this IServiceCollection services)
+        public static IServiceCollection ReplaceDefaultImplementation(this IServiceCollection services)
         {
-            // Make sure Scrutor is available
-            services.Scan(scan => { });
-            
+            var originalDescriptor = services.FirstOrDefault(
+                sd =>
+                    !sd.IsKeyedService &&
+                    sd.ServiceType == typeof(IGrainStorage));
+
+            if (originalDescriptor == null)
+                return services;
+                
+            // Remove the original registration
+            services.Remove(originalDescriptor);
+
+            Func<IServiceProvider, IGrainStorage> innerFactory = null;
+
+            if (originalDescriptor.ImplementationFactory != null)
+            {
+                innerFactory = (sp) => (IGrainStorage)originalDescriptor.ImplementationFactory(sp);
+            }
+            else if (originalDescriptor.ImplementationInstance != null)
+            {
+                innerFactory = (sp) => (IGrainStorage)originalDescriptor.ImplementationInstance;
+            }
+            else
+            {
+                innerFactory = (sp) =>
+                    (IGrainStorage)sp.GetRequiredService(originalDescriptor.ImplementationType);
+            }
+
+            // Add the decorator with the original key
+            services.AddSingleton<IGrainStorage>((sp) =>
+                new MetricsGrainStorage(
+                    innerFactory(sp),
+                    sp.GetRequiredService<ILogger<MetricsGrainStorage>>()));
+                    
             return services;
         }
-        
+
         /// <summary>
-        /// Adds the metrics decorator for IGrainStorage
+        /// Replaces a keyed IGrainStorage implementation with a MetricsGrainStorage decorator
+        /// </summary>
+        /// <param name="services">The service collection</param>
+        /// <param name="name">The key name of the service to replace</param>
+        /// <returns>The service collection for chaining</returns>
+        public static IServiceCollection ReplaceKeyedImplementation(this IServiceCollection services, string name)
+        {
+            var originalDescriptor = services.FirstOrDefault(sd =>
+                sd.ServiceKey?.ToString() == name &&
+                sd.ServiceType == typeof(IGrainStorage));
+
+            if (originalDescriptor == null)
+                return services;
+                
+            // Remove the original registration
+            services.Remove(originalDescriptor);
+
+            Func<IServiceProvider, object?, IGrainStorage> innerFactory = null;
+
+            if (originalDescriptor.KeyedImplementationFactory != null)
+            {
+                innerFactory = (sp, key) => (IGrainStorage)originalDescriptor.KeyedImplementationFactory(sp, key);
+            }
+            else if (originalDescriptor.KeyedImplementationInstance != null)
+            {
+                innerFactory = (sp, key) => (IGrainStorage)originalDescriptor.KeyedImplementationInstance;
+            }
+            else
+            {
+                innerFactory = (sp, key) =>
+                    (IGrainStorage)sp.GetRequiredService(originalDescriptor.KeyedImplementationType);
+            }
+
+            // Add the decorator with the original key
+            services.AddKeyedSingleton<IGrainStorage>(name, (sp, key) =>
+                new MetricsGrainStorage(
+                    innerFactory(sp, key),
+                    sp.GetRequiredService<ILogger<MetricsGrainStorage>>()));
+                    
+            return services;
+        }
+
+        /// <summary>
+        /// Wraps all registered IGrainStorage implementations with MetricsGrainStorage decorators
         /// </summary>
         /// <param name="services">The service collection</param>
         /// <returns>The service collection for chaining</returns>
-        public static IServiceCollection AddMetricsGrainStorage(this IServiceCollection services)
+        public static IServiceCollection UseGrainStorageWithMetrics(this IServiceCollection services)
         {
-            services.Decorate<IGrainStorage>((inner, provider) => 
-                new MetricsGrainStorage(
-                    inner, 
-                    provider.GetRequiredService<ILogger<MetricsGrainStorage>>()));
+            var allKeys = services.Where(s => s.IsKeyedService && s.ServiceType == typeof(IGrainStorage))
+                .Select(s => s.ServiceKey.ToString()).ToList();
                 
+            foreach (var key in allKeys)
+            {
+                services.ReplaceKeyedImplementation(key);
+            }
+
+            services.ReplaceDefaultImplementation();
             return services;
         }
     }
