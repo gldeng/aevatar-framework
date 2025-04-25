@@ -25,7 +25,7 @@ namespace Aevatar.EventSourcing.Core.Storage.Decorators
         private readonly Counter<long> _writeErrorCounter;
         private readonly Counter<long> _clearErrorCounter;
 
-        private const string MeterName = "Aevatar_Storage";
+        private const string MeterName = "Aevatar.Storage";
 
         public MetricsGrainStorage(
             IGrainStorage inner,
