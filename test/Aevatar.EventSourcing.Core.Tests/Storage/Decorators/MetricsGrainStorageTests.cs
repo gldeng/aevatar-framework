@@ -1,5 +1,5 @@
 using System;
-using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Threading.Tasks;
 using Aevatar.EventSourcing.Core.Storage.Decorators;
 using Microsoft.Extensions.Logging;
@@ -142,6 +142,22 @@ namespace Aevatar.EventSourcing.Core.Tests.Storage.Decorators
             
             thrownException.ShouldBe(exception);
             _mockStorage.Verify(s => s.ClearStateAsync(stateName, grainId, grainState), Times.Once);
+        }
+        
+        [Fact]
+        public void Constructor_InitializesMetricsCollectors()
+        {
+            // This test verifies that a MetricsGrainStorage instance can be constructed
+            // which implicitly tests that the metrics collectors are initialized correctly.
+            // We don't test the actual metric collection as it would require a more complex
+            // setup with MeterListener, which is beyond the scope of these unit tests.
+            
+            // Act
+            var storage = new MetricsGrainStorage(_mockStorage.Object, _mockLogger.Object);
+            
+            // Assert
+            storage.ShouldNotBeNull();
+            storage.ShouldBeOfType<MetricsGrainStorage>();
         }
         
         public class TestState

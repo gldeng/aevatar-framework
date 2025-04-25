@@ -30,7 +30,7 @@ namespace Aevatar.EventSourcing.Core.Tests.Integration
             services.AddSingleton(mockLogger.Object);
             
             // Add our metrics decorator
-            services.AddMetricsGrainStorage();
+            services.UseGrainStorageWithMetrics();
             
             // Build service provider
             var serviceProvider = services.BuildServiceProvider();
@@ -56,8 +56,10 @@ namespace Aevatar.EventSourcing.Core.Tests.Integration
             mockStorage.Verify(s => s.WriteStateAsync(stateName, grainId, grainState), Times.Once);
             mockStorage.Verify(s => s.ClearStateAsync(stateName, grainId, grainState), Times.Once);
             
-            // We can't directly verify metrics were logged since we're using System.Diagnostics.ActivitySource
-            // In a real application, we would configure an ActivityListener to capture the metrics
+            // We can't directly verify metrics were collected since we're using System.Diagnostics.Metrics
+            // In a real application, we would configure a MeterListener to capture the metrics.
+            // For integration tests, we're mainly verifying that the decorator functions properly
+            // in the dependency injection pipeline.
         }
         
         [Fact(Skip = "MongoDB integration test is not yet implemented")]
@@ -70,6 +72,7 @@ namespace Aevatar.EventSourcing.Core.Tests.Integration
             // 1. Add the MongoDB provider services
             // 2. Add our metrics decorator registration
             // 3. Verify the decorator is used when storage operations happen
+            // 4. Potentially verify metrics collection using MeterListener if required
             //
             // This test would require a real MongoDB instance or a mock of the MongoClient,
             // so we're leaving it as a placeholder for now.
@@ -80,7 +83,7 @@ namespace Aevatar.EventSourcing.Core.Tests.Integration
             // TODO: Set up MongoDB provider
             
             // Add our metrics decorator
-            services.AddMetricsGrainStorage();
+            services.UseGrainStorageWithMetrics();
             
             // TODO: Complete the integration test
             await Task.CompletedTask;
