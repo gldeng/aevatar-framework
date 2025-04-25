@@ -191,15 +191,15 @@ The following metrics are collected:
 
 | Metric | Type | Description | Tags |
 |--------|------|-------------|------|
-| grain.storage.read.count | Counter | Number of read operations | grainType, stateName |
-| grain.storage.write.count | Counter | Number of write operations | grainType, stateName |
-| grain.storage.clear.count | Counter | Number of clear operations | grainType, stateName |
-| grain.storage.read.duration | Histogram | Duration of read operations in ms | grainType, stateName |
-| grain.storage.write.duration | Histogram | Duration of write operations in ms | grainType, stateName |
-| grain.storage.clear.duration | Histogram | Duration of clear operations in ms | grainType, stateName |
-| grain.storage.read.errors | Counter | Number of read errors | grainType, stateName, errorType |
-| grain.storage.write.errors | Counter | Number of write errors | grainType, stateName, errorType |
-| grain.storage.clear.errors | Counter | Number of clear errors | grainType, stateName, errorType |
+| grain_storage_read_count | Counter | Number of read operations | grainType, stateName |
+| grain_storage_write_count | Counter | Number of write operations | grainType, stateName |
+| grain_storage_clear_count | Counter | Number of clear operations | grainType, stateName |
+| grain_storage_read_duration | Histogram | Duration of read operations in ms | grainType, stateName |
+| grain_storage_write_duration | Histogram | Duration of write operations in ms | grainType, stateName |
+| grain_storage_clear_duration | Histogram | Duration of clear operations in ms | grainType, stateName |
+| grain_storage_read_errors | Counter | Number of read errors | grainType, stateName, errorType |
+| grain_storage_write_errors | Counter | Number of write errors | grainType, stateName, errorType |
+| grain_storage_clear_errors | Counter | Number of clear errors | grainType, stateName, errorType |
 
 ### 5. Integration with Monitoring Systems
 
@@ -220,7 +220,7 @@ Example configuration for OpenTelemetry:
 ```csharp
 services.AddOpenTelemetry()
     .WithMetrics(metrics => metrics
-        .AddMeter("Aevatar.Storage.Metrics")
+        .AddMeter("Aevatar_Storage_Metrics")
         .AddPrometheusExporter());
 ```
 
@@ -243,7 +243,7 @@ public void ConfigureServices(IServiceCollection services)
     // Add metrics collection
     services.AddOpenTelemetry()
         .WithMetrics(metrics => metrics
-            .AddMeter("Aevatar.Storage.Metrics")
+            .AddMeter("Aevatar_Storage_Metrics")
             .AddConsoleExporter());
 }
 ```

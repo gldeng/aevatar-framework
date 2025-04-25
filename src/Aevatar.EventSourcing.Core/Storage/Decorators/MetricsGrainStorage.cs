@@ -25,7 +25,7 @@ namespace Aevatar.EventSourcing.Core.Storage.Decorators
         private readonly Counter<long> _writeErrorCounter;
         private readonly Counter<long> _clearErrorCounter;
 
-        private const string MeterName = "Aevatar.Storage.Metrics";
+        private const string MeterName = "Aevatar_Storage_Metrics";
 
         public MetricsGrainStorage(
             IGrainStorage inner,
@@ -38,49 +38,49 @@ namespace Aevatar.EventSourcing.Core.Storage.Decorators
             
             // Create histograms for operation durations
             _readDurationHistogram = _meter.CreateHistogram<double>(
-                name: "grain.storage.read.duration",
+                name: "grain_storage_read_duration",
                 unit: "ms",
                 description: "Duration of grain state read operations");
                 
             _writeDurationHistogram = _meter.CreateHistogram<double>(
-                name: "grain.storage.write.duration",
+                name: "grain_storage_write_duration",
                 unit: "ms",
                 description: "Duration of grain state write operations");
                 
             _clearDurationHistogram = _meter.CreateHistogram<double>(
-                name: "grain.storage.clear.duration",
+                name: "grain_storage_clear_duration",
                 unit: "ms",
                 description: "Duration of grain state clear operations");
                 
             // Create counters for operation counts
             _readCounter = _meter.CreateCounter<long>(
-                name: "grain.storage.read.count",
+                name: "grain_storage_read_count",
                 unit: "operations",
                 description: "Number of grain state read operations");
                 
             _writeCounter = _meter.CreateCounter<long>(
-                name: "grain.storage.write.count",
+                name: "grain_storage_write_count",
                 unit: "operations",
                 description: "Number of grain state write operations");
                 
             _clearCounter = _meter.CreateCounter<long>(
-                name: "grain.storage.clear.count",
+                name: "grain_storage_clear_count",
                 unit: "operations",
                 description: "Number of grain state clear operations");
                 
             // Create counters for error counts
             _readErrorCounter = _meter.CreateCounter<long>(
-                name: "grain.storage.read.errors",
+                name: "grain_storage_read_errors",
                 unit: "errors",
                 description: "Number of errors during grain state read operations");
                 
             _writeErrorCounter = _meter.CreateCounter<long>(
-                name: "grain.storage.write.errors",
+                name: "grain_storage_write_errors",
                 unit: "errors",
                 description: "Number of errors during grain state write operations");
                 
             _clearErrorCounter = _meter.CreateCounter<long>(
-                name: "grain.storage.clear.errors",
+                name: "grain_storage_clear_errors",
                 unit: "errors",
                 description: "Number of errors during grain state clear operations");
         }
