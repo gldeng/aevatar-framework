@@ -166,6 +166,7 @@
     <PackageVersion Include="GraphQL.Client" Version="6.1.0" />
     <PackageVersion Include="GraphQL.Client.Serializer.Newtonsoft" Version="6.1.0" />
     <PackageVersion Include="PdfPig" Version="0.1.9" />
+    <PackageVersion Include="Scrutor" Version="4.2.2" />
     <!-- AI packages -->
     <PackageVersion Include="Microsoft.SemanticKernel.Connectors.Qdrant" Version="1.33.0-preview" />
     <PackageVersion Include="Microsoft.SemanticKernel.PromptTemplates.Handlebars" Version="1.32.0" />
