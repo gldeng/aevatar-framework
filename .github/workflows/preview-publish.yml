@@ -1,0 +1,65 @@
+name: Publish to Preview Repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g., 1.0.0)'
+        required: true
+        default: ''
+
+env:
+  DOTNET_INSTALL_DIR: "./.dotnet"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        servicename: [
+          Aevatar,
+          Aevatar.Core,
+          Aevatar.Core.Abstractions,
+          Aevatar.EventSourcing.Core,
+          Aevatar.EventSourcing.MongoDB,
+          Aevatar.PermissionManagement,
+          Aevatar.Plugins
+        ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Cache NuGet Packages
+        id: nuget-packages
+        uses: actions/cache@v4
+        env:
+          cache-name: nuget-package-cache
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-${{ env.cache-name }}
+
+      - name: Restore dependencies
+        run: dotnet restore src/${{ matrix.servicename }}/${{ matrix.servicename }}.csproj
+
+      - name: Set version
+        run: echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+
+      - name: Build the project
+        run: dotnet build src/${{ matrix.servicename }}/${{ matrix.servicename }}.csproj --configuration Release --no-restore
+
+      - name: Pack the NuGet package
+        run: dotnet pack src/${{ matrix.servicename }}/${{ matrix.servicename }}.csproj --configuration Release --no-build --output ./nupkg -p:PackageVersion=${{ env.VERSION }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.servicename }}-${{ env.VERSION }}
+          path: ./nupkg
+
+      - name: Publish to NuGet Feed
+        run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.PREVIEW_NUGET_API_KEY }} --source ${{ secrets.PREVIEW_NUGET_FEED_URL }} --skip-duplicate
